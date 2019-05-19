@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:amq="http://activemq.apache.org/schema/core"
+       xmlns:jms="http://www.springframework.org/schema/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd">
+    <!--1.真正可以生产Connection的ConnectionFactory,由对应的JMS服务厂商提供,配置broker中间人路径,父pom.xml中引用了-->
+    <bean id="targetConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="tcp://192.168.200.128:61616"/>
+    </bean>
+
+    <!--2.Spring用于管理真正的ConnectionFactory的ConnectionFactory-->
+    <bean id="connectionFactory" class="org.springframework.jms.connection.SingleConnectionFactory">
+        <!--引用apache的工厂,spring进行转化-->
+        <property name="targetConnectionFactory" ref="targetConnectionFactory"></property>
+    </bean>
+
+    <!--3.Spring提供JMS中间件,jsmTemplate,在这里实例化这个对象-->
+    <bean id="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <!--引入Spring转化后的工厂-->
+        <property name="connectionFactory" ref="connectionFactory"/>
+    </bean>
+
+    <!--4.发布订阅模式容器:会话一:提供方:向JMS注册一个,在Java中使用JMSTemplate.sent(↓,message)-->
+    <bean id="registerCode" class="org.apache.activemq.command.ActiveMQQueue">
+        <!--1.订阅发布者模式:向JMS中建立一个什么会话组名?-->
+        <constructor-arg value="registerCode"/>
+    </bean>
+</beans>

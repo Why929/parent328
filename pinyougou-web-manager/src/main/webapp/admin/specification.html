@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- 页面meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>规格管理</title>
+    <meta content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" name="viewport">
+    <link rel="stylesheet" href="../plugins/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../plugins/adminLTE/css/AdminLTE.css">
+    <link rel="stylesheet" href="../plugins/adminLTE/css/skins/_all-skins.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+	<script src="../plugins/jQuery/jquery-2.2.3.min.js"></script>
+    <script src="../plugins/bootstrap/js/bootstrap.min.js"></script>
+    
+    <!-- 引入angular的js -->
+    <script type="text/javascript" src="../plugins/angularjs/angular.min.js"></script>
+    <!-- 引入分页相关的JS和CSS -->
+    <script type="text/javascript" src="../plugins/angularjs/pagination.js"></script>
+    <link rel="stylesheet" href="../plugins/angularjs/pagination.css">
+    <!--分页控件-->
+    <script type="text/javascript" src="../js/base_pagination.js"></script>
+
+	<!--控制器头-->
+    <script type="text/javascript" src="../js/controller/baseController.js"></script>
+	<!--控制体-->
+	<script type="text/javascript" src="../js/controller/specificationController.js"></script>
+	<!--Service层-->
+	<script type="text/javascript" src="../js/service/specificationService.js"></script>
+
+</head>
+
+<body class="hold-transition skin-red sidebar-mini" ng-app="pinyougou" ng-controller="specificationController">
+  <!-- .box-body -->                
+                    <div class="box-header with-border">
+                        <h3 class="box-title">规格管理</h3>
+                    </div>
+                    <div class="box-body">
+                        <!-- 数据表格 -->
+                        <div class="table-box">
+
+                            <!--工具栏-->
+                            <div class="pull-left">
+                                <div class="form-group form-inline">
+                                    <div class="btn-group">
+										<!--
+											点击新建这个button就弹出了 规格编辑框:
+											同时触发了一个事件:向entity中声明了一个空的 规格详情集合
+											entity={specificationOption:[]}
+							后续有功能事件:	当点击 新增一条规格分类信息的时候,
+											就执行 ..push({}) 向上面数组中添加一个空属性对象
+						又有后续功能input标签:ng-repeat="pojo.x in specificationOption"
+								流程解释:如果input标签被生效了,那么ng-repeat会使遍历sepecificationOption
+									遍历:input pojo.x
+										input pojo.y
+										因为使用的是ng-module 双向绑定
+										所以,一开始是空值空属性,没有x 和 y 属性
+										但是,如果input 输入框输入了,那么由于双向绑定,就会在$scope域中的specificationOption中
+										创建一个x:输入值
+												y:输入值
+										非常巧妙
+										-->
+                                        <button type="button" class="btn btn-default" title="新建" ng-click="entity={specificationOptionList:[]}" data-toggle="modal" data-target="#editModal" ><i class="fa fa-file-o"></i> 新建</button>
+                                        <button type="button" class="btn btn-default" title="删除" ng-click="dele()" ><i class="fa fa-trash-o"></i> 删除</button>
+                                        
+                                        <button type="button" class="btn btn-default" title="刷新" onclick="window.location.reload();"><i class="fa fa-refresh"></i> 刷新</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="box-tools pull-right">
+                                <div class="has-feedback">
+							                    规格名称：<input  >									
+									<button class="btn btn-default" >查询</button>                                    
+                                </div>
+                            </div>
+                            <!--工具栏/-->
+			                  <!--数据列表-->
+			                  <table id="dataList" class="table table-bordered table-striped table-hover dataTable">
+			                      <thead>
+			                          <tr>
+			                              <th class="" style="padding-right:0px">
+			                                  <input id="selall" type="checkbox" class="icheckbox_square-blue">
+			                              </th> 
+										  <th class="sorting_asc">规格ID</th>
+									      <th class="sorting">规格名称</th>									     												
+					                      <th class="text-center">操作</th>
+			                          </tr>
+			                      </thead>
+			                      <tbody>
+								  <!--
+								  		回显
+								  -->
+			                          <tr ng-repeat="entity in list">
+			                              <td><input  type="checkbox" ng-click="updateSelection($event,entity.id)"></td>			                              
+				                          <td>{{entity.id}}</td>
+									      <td>{{entity.specName}}</td>
+		                                  <td class="text-center">                                           
+		                                 	  <button type="button" class="btn bg-olive btn-xs" ng-click="findOne(entity.id)" data-toggle="modal" data-target="#editModal">修改</button>                                           
+		                                  </td>
+			                          </tr>
+			                      </tbody>
+			                  </table>
+			                  <!--数据列表/-->    
+                        </div>
+                        <!-- 数据表格 /--> 
+                        <!-- 分页 -->
+						<tm-pagination conf="paginationConf"></tm-pagination>
+                     </div>
+                    <!-- /.box-body -->                    
+	          		    
+                                
+<!-- 编辑窗口 -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog" >
+	<div class="modal-content">
+		<div class="modal-header">
+			<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+			<h3 id="myModalLabel">规格编辑</h3>
+		</div>
+		<div class="modal-body">							
+
+			<table class="table table-bordered table-striped"  width="800px">
+		      	<tr>
+		      		<td>规格名称</td>
+
+		      		<td><input  class="form-control" placeholder="规格名称" ng-model="entity.specification.specName">  </td>
+		      	</tr>
+			 </table>				
+			 
+			 <!-- 规格选项 -->
+			 <div class="btn-group">
+				 <!--
+				 	首先声明了一个空的specificationOptionList []数组到entity中,上面点新建的时候就完成了
+				 	2.点击新增 规格分类集合的时候触发 添加.push({})一个具体的规格分类空属性对象到specificationOptionList中
+				 	3.然后下面紧接着使用 angularjs ng-repeat 将循环遍历specificationOptionList中内容
+				 	到input 标签中 遍历到的是 ng-module绑定变量中了
+				 	有如下情况事件会发生:
+				 		1.遍历时 specificationOptionList中没有数据,无数据回显到input输入框中
+				 		2.用户向input输入框中输入值了,那么,ng-module会向$scope.specificationOptionList中
+				 		创建被ng-module绑定的变量,同时将用户输入的值作为value存入
+				 		然后就是点击保存button触发的$http.get/post请求了,
+				 		在xx.html中:触发的是save()事件
+				 		而xx.html首先引用的是controller.js
+				 		然后controller.js引用的是分离出去的controller::app.service
+				 		最后找到$http.get/post在叫什么名在app.service中的具体位置
+				 		最好找到,访问后台的哪个controller,
+				 				传递的什么参数
+				 -->
+                  <button type="button" class="btn btn-default" title="新建" ng-click="addTableRow()"><i class="fa fa-file-o"></i> 新增规格选项</button>
+                  
+             </div>
+			 
+			 <table class="table table-bordered table-striped table-hover dataTable">
+                    <thead>
+                        <tr>
+                          
+					 
+				      <th class="sorting">规格选项</th>
+				      <th class="sorting">排序</th>																
+                      <th class="sorting">操作</th>	
+                    </thead>
+                    <tbody>
+                      <tr ng-repeat="pojo in entity.specificationOptionList">
+                           
+				            <td>
+				            	<input ng-model="pojo.optionName" class="form-control" placeholder="规格选项"> 
+				            </td>
+				            <td>
+				            	<input ng-model="pojo.orders" class="form-control" placeholder="排序"> 
+				            </td>
+							<td>
+								<button type="button" class="btn btn-default" title="删除" ng-click="deleteTableRow($index)"><i class="fa fa-trash-o"></i> 删除</button>
+							</td>
+                      </tr>
+					 
+                    </tbody>
+			  </table> 
+			
+			
+		</div>
+		<div class="modal-footer">						
+			<button class="btn btn-success" data-dismiss="modal" aria-hidden="true" ng-click="save()">保存</button>
+			<button class="btn btn-default" data-dismiss="modal" aria-hidden="true">关闭</button>
+		</div>
+	  </div>
+	</div>
+</div>    
+
+</body>
+
+</html>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans
+        xmlns="http://www.springframework.org/schema/security"
+        xmlns:beans="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+
+        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://code.alibabatech.com/schema/dubbo http://code.alibabatech.com/schema/dubbo/dubbo.xsd
+						http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+
+    <!--要点:所有跳转URL 必须都是以 /  开头-->
+    <!--要点:更改了xml文件,需要重启项目,重新加载xml-->
+    <!--放行必要的资源和页面-->
+    <http pattern="/*.html" security="none"/>
+    <http pattern="/css/**" security="none"/>
+    <http pattern="/img/**" security="none"/>
+    <http pattern="/js/**" security="none"/>
+    <http pattern="/plugins/**" security="none"/>
+    <!--对注册页面放行-->
+    <http pattern="/seller/add.do" security="none"/>
+
+    <!--拦截规则-->
+    <http use-expressions="false">
+        <!--intercept-url:过滤 pattern拦截:双星:拦截所有 access:权限-->
+        <intercept-url pattern="/**" access="ROLE_SELLER"/>
+
+        <!--开启表单验证-->
+        <form-login login-page="/shoplogin.html"
+                    default-target-url="/admin/index.html"
+                    authentication-failure-url="/shoplogin.html"
+                    always-use-default-target="true"/>
+
+        <!--关闭跨站访问伪造:csrf-->
+        <csrf disabled="true"/>
+
+        <!--框架页面不拦截:-->
+        <headers>
+            <frame-options policy="SAMEORIGIN"/>
+        </headers>
+
+        <!--注销  注销成功跳转页面 DiyBUG:url没有以 / 开头,导致注销不能成功-->
+        <logout logout-url="/logout" logout-success-url="/shoplogin.html"/>
+    </http>
+
+    <!--认证配置管理器-->
+    <authentication-manager>
+        <!--认证器:引用spring容器的一个能连接数据库的实例:需要实现UserDetaiService接口-->
+        <authentication-provider user-service-ref="userDetailService">
+            <!--对登录用户密码加密器:引用Spring容器中实例的一个加密器-->
+            <password-encoder ref="passwordEncoder"/>
+       </authentication-provider>
+    </authentication-manager>
+
+    <!--
+        Spring容器中的SpringSecurity需要使用一个能连接数据库的beanA:通过调用另外一个Dubbo中的beanB
+        但是目前:dubbo中的Service实例都被实例到Springmvc容器中了
+        所以需要:在springSecurity.xml中手动实现beanA,并单独从dubbo中申请一个Service层bean到Spring容器中
+        然后在手动在springSecurity.xml中注入到beanA中
+    -->
+    <!--实例化本项目Service包中的一个类:并注入:连接数据库的:实例bean:通过dubbo单独申请到Spring容器中的-->
+    <beans:bean name="userDetailService" class="cn.itcast.core.service.UserDetailServiceImpl">
+        <!--给这个实例:注入另外一个实例:在本xml中从Dubbo引用过来的:能连接数据库:根据用户名查询密码的实例-->
+        <beans:property name="sellerService" ref="sellerService"/>
+    </beans:bean>
+
+    <!--实例化:sellerService:从dubbo引入-->
+    <!-- springmvc和springSecurity中的dubbo名一样:不会有影响么?-->
+    <dubbo:application name="pinyougou-shop-web"/>
+    <dubbo:registry address="zookeeper://192.168.200.128:2181"/>
+    <!--向Dubbo注册中心:申请使用一个Service层实例:在本xml中会注入UserDetailServiceImpl中-->
+    <dubbo:reference id="sellerService" interface="cn.itcast.core.service.SellerService"/>
+    <!--开启不项目运行不检测:service服务器是否开启-->
+    <dubbo:consumer timeout="600000" check="false"/>
+    <!--实例化一个加密器:-->
+    <beans:bean id="passwordEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"/>
+
+</beans:beans>

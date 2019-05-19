@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans
+        xmlns="http://www.springframework.org/schema/security"
+        xmlns:beans="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/security
+		http://www.springframework.org/schema/security/spring-security.xsd
+">
+    <!--要点:所有页面路径:必须都以 / 开头-->
+    <!--放行页面
+        登录页面:/login.html
+        css样式:/css/**
+        img图片:/img/**
+        js请求:/js/**
+        plugins插件:/plugins/**
+    -->
+    <http pattern="/login.html" security="none"/>
+    <http pattern="/css/**" security="none"/>
+    <http pattern="/img/**" security="none"/>
+    <http pattern="/js/**" security="none"/>
+    <http pattern="/plugins/**" security="none"/>
+
+    <!-- 拦截规则:首先关闭 springEL表达式-->
+    <http use-expressions="false">
+        <!--
+            配置SprnigSecurity的拦截规则:
+            pattern:
+            access:设置角色 角色名 ROLE_角色名 如:ROLE_USER
+        -->
+        <intercept-url pattern="/**" access="ROLE_ADMIN"/>
+
+        <!--
+            开启表单验证:
+            username-parameter="username"
+            password-parameter="password"
+            login-page :登录页面名称:WEBApp下 :并不是登录页面请求url
+            default-target-url :登录成功后跳转的页面
+            login-processing-url:请求提交action url 默认值 /login 可以修改
+            always-use-default-target="true" :不管从哪个页面跳转过来的,登录成功后 都跳转到首页:
+        -->
+        <form-login login-page="/login.html"
+                    default-target-url="/admin/index.html"
+                    always-use-default-target="true"
+                    authentication-failure-url="/login.html"/>
+
+        <!--关闭跨站请求伪造:令牌校验-->
+        <csrf disabled="true"/>
+
+        <!--配置框架页面不拦截:一个页面内 嵌套使用到了 另外一个页面,则不拦截用户对第二个页面的访问:同源策略-->
+        <headers>
+            <frame-options policy="SAMEORIGIN"/>
+        </headers>
+
+        <!--注销的配置
+            注销页面url:/todo WT:这个url指向的哪里?是谁的页面?自带的么?还是页面的注销按钮action指向这里?
+            注销成功跳转url:
+        -->
+        <logout logout-url="/logout" logout-success-url="/login.html"/>
+    </http>
+
+    <!--配置热证管理器-->
+    <authentication-manager>
+        <!--认证的提供者:
+            谁能登录:用户名 密码 :后期会去数据库查询
+            各个用户的权限:
+        -->
+        <authentication-provider>
+            <user-service>
+                <!--BUG:经过分析发现,如果使用 access属性,那么authentication.getName()
+                    得到的是Seller表中的主键SellerId,而这个主键SellerId也是登录商户Id
+                -->
+                <user name="admin" password="123456" authorities="ROLE_ADMIN"/>
+                <user name="wc" password="123456" authorities="ROLE_ADMIN"/>
+            </user-service>
+        </authentication-provider>
+    </authentication-manager>
+
+</beans:beans>

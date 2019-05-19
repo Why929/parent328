@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://java.sun.com/xml/ns/javaee"
+	xsi:schemaLocation="
+	http://java.sun.com/xml/ns/javaee
+	http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd
+"
+	version="2.5"
+>
+   <!-- 解决post乱码:过滤器 -->
+	<filter>
+		<filter-name>CharacterEncodingFilter</filter-name>
+		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+		<!--配置解码:目标:CharacterEncoding类中:encoding变量-->
+		<init-param>
+			<param-name>encoding</param-name>
+			<param-value>utf-8</param-value>
+		</init-param>
+		<!--强制转码:开启:也在CharacterEncoding中-->
+		<init-param>
+			<param-name>forceEncoding</param-name>
+			<param-value>true</param-value>
+		</init-param>
+	</filter>
+	<filter-mapping>
+		<filter-name>CharacterEncodingFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+<!--前端控制器:本质是Servlet:springmvc的-->
+	<servlet>
+		<servlet-name>springmvc</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<!--加载springmvc.xml-->
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<!--
+				只加载本项目中的xml文件,不带星
+				带星:Service项目中:带星:加载了Dao jar项目中的xml,实例化要使用的Dao
+			-->
+			<param-value>classpath:spring/springmvc.xml</param-value>
+		</init-param>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>springmvc</servlet-name>
+		<url-pattern>*.do</url-pattern>
+	</servlet-mapping>
+
+ <!--监听器:加载springSecurity.xml-->
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+	<!--监听器会加载:context-param:中的配置文件-->
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<!--只加载本项目中的springSecurity.xml:具体拦截规则等-->
+		<param-value>classpath:spring/spring-security_backup.xml</param-value>
+	</context-param>
+
+<!--servlet Filter代理:springSecurity过滤拦截登录验证时,需要spring容器中的bean实例,
+	使用/开启DelegatingFilterProxy可以通过spring直接注入:在xml中 给一个配置了set/get的类 注入实例/建立/赋值 关联
+-->
+	<filter>
+		<!--名字还是固定的?-->
+		<filter-name>springSecurityFilterChain</filter-name>
+		<!--DelegatingFilterProxy:-->
+		<filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>springSecurityFilterChain</filter-name>
+		<!--对所有请求进行拦截:不管来自于何种客户端-->
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+</web-app>

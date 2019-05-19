@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:amq="http://activemq.apache.org/schema/core"
+       xmlns:jms="http://www.springframework.org/schema/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd">
+
+<!--1.真正可以产生Connection的ConnectonFactory,由对应的JMS服务厂商提供-->
+    <bean id="targetConnectionFactory" class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="tcp://192.168.200.128:61616"/>
+    </bean>
+<!--2.Spring用于管理真正的ConnectonFactory的ConnectionFactory-->
+    <bean id="connectionFactory" class="org.springframework.jms.connection.SingleConnectionFactory">
+        <!--引入apache的工厂实例,进行转换:name自己的属性 ref引入别人的属性-->
+        <property name="targetConnectionFactory" ref="targetConnectionFactory"/>
+    </bean>
+<!--3.Spring公司提供的监听器容器:监听器一:监听JMS 中 的某一个会话组,因为这是个监听容器,所以可以有很多个,内部ref不同的发布订阅式/存储接收信息实例-->
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <!--1.需要:一个工厂-->
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <!--2.需要:包含了某确定的会话组对象,你要监听JMS中的谁?那个会话?与消息提供方向对应-->
+        <property name="destination" ref="topicPageAndSolrDestination"/>
+        <!--3.需要:处理业务对象一,接收消息 并处理业务对象,存储 监听到的信息的 对象,并根据监听到的信息 处理业务逻辑,也应该可以引用多个处理业务对象-->
+        <property name="messageListener" ref="addItem2Solr"/>
+    </bean>
+<!--4.发布订阅模式容器:会话一:起一个名/指定一个名 你要建立/监听 的会话组名称,这个如果是一个实例,那么就可以有多个不同 会话组实例-->
+    <!--消费者:监听JMS,在consumer.xml 中使用监听容器.ref=↓-->
+    <bean id="topicPageAndSolrDestination" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="pinyougou_topic_page_solr"/>
+    </bean>
+<!--5.处理业务对象一:接收监听到特定JMS信息,处理相应信业务的 对象___业务一:将item引入solr索引库-->
+    <!--_____________________________________________________________________________________-->
+    <bean id="addItem2Solr" class="cn.itcast.core.listener.ItemSearchListener"></bean>
+<!--6.spring公司听提供的监听器容器:监听器二:监听JMS中的另外一个会话组-->
+    <bean class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <!--1.需要:一个工厂-->
+        <property name="connectionFactory" ref="connectionFactory"/>
+        <!--2.需要:发布订阅模式容器:包含某一特定 会话组-->
+        <property name="destination" ref="pinyougou_topic_del_solr_goods"/>
+        <!--3.需要:业务处理对象-->
+        <property name="messageListener" ref="deleteGoodsSolr"/>
+    </bean>
+<!--7.发布订阅容器:会话二.-->
+    <bean id="pinyougou_topic_del_solr_goods" class="org.apache.activemq.command.ActiveMQTopic">
+        <constructor-arg value="pinyougou_topic_del_solr_goods"/>
+    </bean>
+<!--8.业务处理对象二:接收另外的特定JMS信息,处理相关业务-->
+    <bean id="deleteGoodsSolr" class="cn.itcast.core.listener.ItemDeleteListener"/>
+</beans>
+<!--
+    分析:一个监听器中可以有多个 处理对象吧,但是现在,审核通过 >>>>JMS>>>>>1.添加到Solr索引库: service-search()  监听JMS
+                                                                     2.生成静态页面:     service-page()  监听JMS
+                             所以现在,这里只处理跟search相关的东西,
+                             不处理page相关的东西
+-->

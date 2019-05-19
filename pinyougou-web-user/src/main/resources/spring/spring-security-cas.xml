@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+             xmlns:beans="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+
+
+<!--1.放行资源:security不拦截-->
+    <http pattern="/css/**" security="none"></http>
+    <http pattern="/img/**" security="none"></http>
+    <http pattern="/js/**" security="none"></http>
+    <http pattern="/plugins/**" security="none"></http>
+    <http pattern="/register.html" security="none"></http>
+    <http pattern="/user/add.do" security="none"></http>
+    <http pattern="/user/sendCode.do" security="none"></http>
+
+<!--2.SpringSecurity中CAS认证入口:SpringSecurity入口,内部引用的CAS-->
+    <http use-expressions="false" entry-point-ref="casProcessingFilterEntryPoint"><!--内部引用CAS首次登录-->
+        <!--1.1 拦截访问,授予权限,初次授权,在认证实现类有进一步的授权,是不是plus会员-->
+        <intercept-url pattern="/**" access="ROLE_USER"/>
+        <!--1.2 跨站请求访问-->
+        <csrf disabled="true"/>
+        <!-- custom-filter过滤器,position表示将过滤器放在指定的位置上,
+                                befor表示放在指定位置前,after表示放在指定的位置之后
+        -->
+        <custom-filter ref="casAuthenticationFilter"  position="CAS_FILTER" />    <!--引入CAS登录验证:二次验证-->
+        <custom-filter ref="requestSingleLogoutFilter" before="LOGOUT_FILTER"/>  <!--退出:清除CSA中的Session 清除用户浏览器Cookie-->
+        <custom-filter ref="singleLogoutFilter" before="CAS_FILTER"/>           <!--清除CAS-Client中的Map<Ticket,Session>,退出时,根据ticket删除对应的Session-->
+    </http>
+
+    <!--2.CAS验证:首次登录:spring层面封装-->
+    <beans:bean id="casProcessingFilterEntryPoint" class="org.springframework.security.cas.web.CasAuthenticationEntryPoint">
+        <beans:property name="loginUrl" value="http://192.168.200.128:9100/cas/login"/><!--Cas登录地址-->
+        <beans:property name="serviceProperties" ref="serviceProperties"/>  <!--回城地址-->
+    </beans:bean>
+<!--3.CAS验证:二次验证:spring层面封装-->
+    <beans:bean id="casAuthenticationFilter" class="org.springframework.security.cas.web.CasAuthenticationFilter">
+        <beans:property name="authenticationManager" ref="authenticationManager"/> <!--认证管理器:具体CAS验证配置信息-->
+    </beans:bean>
+<!--4.CAS退出:三大清除-->
+    <!--4.1 清除CAS 清除用户浏览器Cookie,SecurityContextLogoutHandler,撤销授权,使用当前session无效化,同时response用户浏览器对/logout/cas 清除用户浏览器Cookie-->
+    <beans:bean id="requestSingleLogoutFilter" class="org.springframework.security.web.authentication.logout.LogoutFilter">
+        <!--1.项目中:凸出Controller层,路径-->
+        <beans:property name="filterProcessesUrl" value="/logout/cas"/>
+        <!--2.建立 Controller访问路径 与 CAS访问路径关系,同时能清除 CAS中Session + SecurityContextLogoutHandler,撤销授权,使用当前session无效化,同时response用户浏览器对/logout/cas 清除用户浏览器Cookie-->
+        <beans:constructor-arg>
+            <beans:bean class="org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler"/>
+        </beans:constructor-arg>
+        <!--3.封装CAS地址 + 回城地址-->
+        <beans:constructor-arg value="http://192.168.200.128:9100/cas/logout?service=http://localhost:9104"/>
+    </beans:bean>
+    <!--4.2 清除CAS-Client中的Map<Ticket,Session>,退出时,根据ticket删除对应的Session-->
+    <beans:bean id="singleLogoutFilter" class="org.jasig.cas.client.session.SingleSignOutFilter"/>
+
+<!--______________各个部分引用的 bean__________________________-->
+<!--1.回城bean-->
+    <beans:bean id="serviceProperties" class="org.springframework.security.cas.ServiceProperties">
+        <beans:property name="service" value="http://localhost:9104/login/cas"/>
+    </beans:bean>
+    <!--2.认证管理器bean:引用方式:引用认证提供者-->
+    <authentication-manager alias="authenticationManager">
+        <authentication-provider ref="casAuthenticationProvider"/><!--引用认证提供者-->
+    </authentication-manager>
+<!--3.认证提供者bean-->
+    <beans:bean id="casAuthenticationProvider"     class="org.springframework.security.cas.authentication.CasAuthenticationProvider">
+        <!--1.认证实现类:接收CAS返回的 登录用户名-->
+        <beans:property name="authenticationUserDetailsService">
+            <!--封装一层:可以通过 名字外引入-->
+            <beans:bean class="org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper">
+                <beans:constructor-arg ref="userDetailsService" />
+            </beans:bean>
+        </beans:property>
+
+        <!--2.CAS验证地址:ticketValidator 票据验证群-->
+        <beans:property name="ticketValidator">
+            <beans:bean class="org.jasig.cas.client.validation.Cas20ServiceTicketValidator">
+                <beans:constructor-arg index="0" value="http://192.168.200.128:9100/cas"/><!--不知道这个index是干什么用的?-->
+            </beans:bean>
+        </beans:property>
+
+        <!--3.回城地址-->
+        <beans:property name="serviceProperties" ref="serviceProperties"/>
+
+        <!--4.不知道是干什么的-->
+        <beans:property name="key" value="an_id_for_this_auth_provider_only"/>
+    </beans:bean>
+
+<!--4.认证实例:接收CAS 验证成功返回的登录用户名,并处理授权业务,这个类需要手动实现UserDetailServiceImpl-->
+    <beans:bean id="userDetailsService" class="cn.itcast.core.service.UserDetailServiceImpl"/>
+<!---->
+</beans:beans>
